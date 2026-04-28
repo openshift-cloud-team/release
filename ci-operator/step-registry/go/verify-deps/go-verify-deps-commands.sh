@@ -110,13 +110,18 @@ COMPAT=${COMPAT:-""}
 
 echo "Checking that vendor/ is correct"
 
-echo "Running: go mod tidy $COMPAT"
-go mod tidy $COMPAT
-
 VENDOR_MODE="mod"
 if [[ -f "go.work" && "${GOWORK:-}" != "off" ]]; then
-  echo "Detected go workspace; using \"go work vendor\"."
+  echo "Detected go workspace; running go mod tidy for each workspace module."
   VENDOR_MODE="work"
+  while IFS= read -r -d '' go_mod_file; do
+    module_dir=$(dirname "$go_mod_file")
+    echo "Running: go mod tidy $COMPAT in $module_dir"
+    (cd "$module_dir" && go mod tidy $COMPAT)
+  done < <(find . -name 'go.mod' -not -path '*/vendor/*' -print0)
+else
+  echo "Running: go mod tidy $COMPAT"
+  go mod tidy $COMPAT
 fi
 
 echo "Running: go ${VENDOR_MODE} vendor"
